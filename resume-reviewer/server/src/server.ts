@@ -1,16 +1,14 @@
 import express from 'express';
 import cors from 'cors';
-import uploadRouter from './routes/upload';
+import uploadRoutes from './routes/upload';
 
 const app = express();
 app.use(cors());
 app.use(express.json());
 
-app.get('/', (_, res) => {
-  res.send('Backend is running');
-});
 
-app.use('/api/upload', uploadRouter);
+
+app.use('/api/upload', uploadRoutes);
 
 
 const PORT = process.env.PORT || 5000;

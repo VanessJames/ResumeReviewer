@@ -1,7 +1,6 @@
 import express, { Request, Response } from 'express';
 import multer from 'multer';
-import path from 'path';
-import fs from 'fs';
+import pdfParse from 'pdf-parse';
 
 const router = express.Router();
 
@@ -10,16 +9,24 @@ const storage = multer.memoryStorage();
 const upload = multer({ storage: storage });
 
 router.post('/', upload.single('resume'), async (req: Request, res: Response): Promise<void> => {
-  try {
-    if (!req.file) {
-      res.status(400).json({ error: 'No file uploaded.' });
-      return;
-    }
+  if (!req.file) {
+    res.status(400).json({ error: 'No file uploaded.' });
+    return;
+  }
 
-    // You now have access to `req.file.buffer` — the PDF content
-    res.json({ message: 'File received successfully!' });
+  try {
+    // Parse PDF buffer
+    const pdfData = await pdfParse(req.file.buffer);
+
+    // The extracted text
+    const resumeText = pdfData.text;
+
+    res.json({
+      message: 'File uploaded and parsed successfully!',
+      resumeText: resumeText.substring(0, 500), // Just return the first 500 characters for now
+    });
   } catch (error) {
-    res.status(500).json({ error: 'An error occurred while processing the file.' });
+    res.status(500).json({ error: 'Error parsing the PDF.' });
   }
 });
 
