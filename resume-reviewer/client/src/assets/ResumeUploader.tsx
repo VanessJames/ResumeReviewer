@@ -1,70 +1,67 @@
-import React, { useState } from "react";
+import { useState } from "react";
 import axios from "axios";
 
-const ResumeUploader: React.FC = () => {
+function ResumeUploader() {
   const [file, setFile] = useState<File | null>(null);
-  const [resumeText, setResumeText] = useState("");
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState("");
+  const [response, setResponse] = useState<string | null>(null);
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const selectedFile = e.target.files?.[0];
-    setFile(selectedFile || null);
-    setResumeText("");
-    setError("");
+    if (e.target.files) {
+      setFile(e.target.files[0]);
+    }
   };
 
   const handleUpload = async () => {
-    if (!file) {
-      setError("Please select a PDF file first.");
-      return;
-    }
+    if (!file) return;
 
     const formData = new FormData();
     formData.append("resume", file);
 
     try {
-      setLoading(true);
-      const response = await axios.post(
+      const res = await axios.post(
         "http://localhost:5000/api/upload",
         formData,
         {
-          headers: {
-            "Content-Type": "multipart/form-data",
-          },
+          headers: { "Content-Type": "multipart/form-data" },
         }
       );
-
-      setResumeText(response.data.resumeText);
-    } catch (err) {
-      setError("Failed to upload or parse the PDF.");
-    } finally {
-      setLoading(false);
+      setResponse(res.data.resumeText);
+    } catch (error) {
+      console.error(error);
+      setResponse("Upload failed.");
     }
   };
 
   return (
-    <div style={{ maxWidth: 600, margin: "auto", textAlign: "center" }}>
-      <h2>Upload Resume (PDF)</h2>
-      <input type="file" accept="application/pdf" onChange={handleFileChange} />
-      <br />
-      <br />
-      <button onClick={handleUpload} disabled={loading}>
-        {loading ? "Uploading..." : "Upload & Parse"}
-      </button>
-      <br />
-      <br />
-      {error && <p style={{ color: "red" }}>{error}</p>}
-      {resumeText && (
-        <div>
-          <h3>Extracted Resume Text:</h3>
-          <pre style={{ textAlign: "left", whiteSpace: "pre-wrap" }}>
-            {resumeText}
-          </pre>
-        </div>
-      )}
+    <div className="min-h-screen flex flex-col items-center justify-center bg-gray-100 p-6">
+      <div className="bg-white shadow-xl rounded-xl p-8 w-full max-w-md">
+        <h1 className="text-2xl font-bold mb-4 text-center">
+          Upload Your Resume
+        </h1>
+        <input
+          type="file"
+          accept=".pdf"
+          onChange={handleFileChange}
+          className="mb-4 w-full border rounded p-2"
+        />
+        <button
+          onClick={handleUpload}
+          className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 w-full"
+        >
+          Upload and Analyze
+        </button>
+
+        {response && (
+          <div className="mt-6">
+            <h2 className="font-semibold text-lg mb-2">Extracted Text:</h2>
+            <pre className="bg-gray-100 p-3 rounded text-sm overflow-auto max-h-64">
+              {response}
+            </pre>
+          </div>
+        )}
+      </div>
     </div>
   );
-};
+}
 
 export default ResumeUploader;
