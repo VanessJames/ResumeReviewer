@@ -23,7 +23,7 @@ router.post('/', upload.single('resume'), async (req: Request, res: Response): P
 
     res.json({
       message: 'File uploaded and parsed successfully!',
-      resumeText: resumeText.substring(0, 500), // Just return the first 500 characters for now
+      resumeText: resumeText.substring(0, 5000), // Just return the first 500 characters for now
     });
   } catch (error) {
     res.status(500).json({ error: 'Error parsing the PDF.' });
