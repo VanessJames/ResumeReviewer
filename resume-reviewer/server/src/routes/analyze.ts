@@ -1,43 +1,44 @@
-import express, { Request, Response } from 'express';
+import express from 'express';
 import multer from 'multer';
 import pdfParse from 'pdf-parse';
-import { parseResume } from '../parser';
-import { extractKeywords, calculateMatch } from '../utils';
-import { analyzeWithAI } from '../analysis';
+import { analyzeResume } from '../analysis';
 
 const router = express.Router();
-const storage = multer.memoryStorage();
-const upload = multer({ storage: storage });
 
-router.post('/', upload.single('resume'), (req: Request, res: Response, next) => {
+// Set up multer for file handling
+const storage = multer.memoryStorage();
+const upload = multer({ storage });
+
+// POST /api/analyze
+router.post('/', upload.single('resume'), (req, res) => {
   (async () => {
     try {
       const jobDescription = req.body.jobDescription;
+      const file = req.file;
 
-      if (!req.file || !jobDescription) {
-        return res.status(400).json({ error: 'Resume and job description are required.' });
+      if (!file) {
+        res.status(400).json({ error: 'No resume file uploaded.' });
+        return;
       }
 
-      const pdfData = await pdfParse(req.file.buffer);
-      const parsedResume = parseResume(pdfData.text);
-      const jobKeywords = extractKeywords(jobDescription);
+      if (!jobDescription) {
+        res.status(400).json({ error: 'Job description is required.' });
+        return;
+      }
 
-      const allResumeWords = extractKeywords(parsedResume.text);
-      const matchResult = calculateMatch(allResumeWords, jobKeywords);
+      // Parse resume PDF
+      const pdfData = await pdfParse(file.buffer);
+      const resumeText = pdfData.text;
 
-      const aiFeedback = await analyzeWithAI(parsedResume.text, jobDescription);
+      // Analyze resume vs job description
+      const result = await analyzeResume(resumeText, jobDescription);
 
-      res.json({
-        matchPercentage: matchResult.matchPercentage,
-        strengths: matchResult.matchedKeywords,
-        weaknesses: matchResult.missingKeywords,
-        feedback: aiFeedback,
-      });
+      res.json(result);
     } catch (error) {
-      console.error('Error during analysis:', error);
-      res.status(500).json({ error: 'Something went wrong during analysis.' });
+      console.error('Error analyzing resume:', error);
+      res.status(500).json({ error: 'An error occurred while analyzing the resume.' });
     }
-  })().catch(next);
+  })();
 });
 
 export default router;
