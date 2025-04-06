@@ -1,77 +1,87 @@
-import { useState } from "react";
+import React, { useState } from "react";
 import axios from "axios";
-import { FaSpinner } from "react-icons/fa";
 
 function App() {
   const [file, setFile] = useState<File | null>(null);
-  const [resumeText, setResumeText] = useState<string | null>(null);
+  const [jobDescription, setJobDescription] = useState("");
   const [loading, setLoading] = useState(false);
+  const [result, setResult] = useState("");
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setFile(e.target.files?.[0] || null);
+    if (e.target.files) {
+      setFile(e.target.files[0]);
+    }
   };
 
-  const handleUpload = async () => {
-    if (!file) return;
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!file || !jobDescription) {
+      alert("Please upload a resume and enter a job description.");
+      return;
+    }
 
     const formData = new FormData();
     formData.append("resume", file);
+    formData.append("jobDescription", jobDescription);
 
-    setLoading(true); // Start loading
+    setLoading(true);
 
     try {
-      const res = await axios.post(
-        "http://localhost:5000/api/upload",
+      const response = await axios.post(
+        "http://localhost:5000/api/analyze",
         formData,
         {
-          headers: {
-            "Content-Type": "multipart/form-data",
-          },
+          headers: { "Content-Type": "multipart/form-data" },
         }
       );
-      setResumeText(res.data.resumeText);
-    } catch (err) {
-      console.error(err);
-      setResumeText("Failed to upload or parse resume.");
+
+      setResult(response.data.feedback || "No feedback received.");
+    } catch (error) {
+      console.error(error);
+      setResult("An error occurred.");
     } finally {
-      setLoading(false); // Stop loading
+      setLoading(false);
     }
   };
 
   return (
-    <div className="min-h-screen bg-gray-100 flex flex-col items-center justify-center p-4">
-      <div className="bg-white p-6 rounded-lg shadow-md w-full max-w-md">
-        <h1 className="text-xl font-bold mb-4 text-center">
-          Upload Your Resume
-        </h1>
+    <div className="min-h-screen bg-gray-100 flex items-center justify-center p-4">
+      <form
+        onSubmit={handleSubmit}
+        className="bg-white p-6 rounded shadow-md w-full max-w-md space-y-4"
+      >
+        <h1 className="text-xl font-bold">Resume Analyzer</h1>
+
         <input
           type="file"
+          accept=".pdf"
           onChange={handleFileChange}
-          className="mb-4 w-full"
+          className="block w-full text-sm text-gray-600"
         />
+
+        <textarea
+          placeholder="Paste the job description here..."
+          value={jobDescription}
+          onChange={(e) => setJobDescription(e.target.value)}
+          className="w-full border p-2 rounded h-40"
+          required
+        />
+
         <button
-          onClick={handleUpload}
-          className="w-full bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 transition disabled:opacity-50"
-          disabled={loading}
+          type="submit"
+          className="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600"
         >
-          {loading ? "Uploading..." : "Upload"}
+          {loading ? "Analyzing..." : "Upload & Analyze"}
         </button>
 
-        {loading && (
-          <div className="flex justify-center mt-4">
-            <FaSpinner className="animate-spin text-blue-600 text-4xl" />
+        {loading && <div className="mt-4 text-blue-600">⏳ Analyzing...</div>}
+        {result && (
+          <div className="mt-4 p-3 bg-gray-100 rounded border border-gray-300">
+            <strong>Feedback:</strong>
+            <p>{result}</p>
           </div>
         )}
-
-        {resumeText && !loading && (
-          <div className="mt-6">
-            <h2 className="font-semibold mb-2">Extracted Text:</h2>
-            <pre className="bg-gray-200 p-2 rounded text-sm max-h-60 overflow-y-auto">
-              {resumeText}
-            </pre>
-          </div>
-        )}
-      </div>
+      </form>
     </div>
   );
 }
