@@ -1,44 +1,48 @@
 import React, { useState } from "react";
-import axios from "axios";
+import Spinner from "./components/Spinner";
 
-function App() {
-  const [file, setFile] = useState<File | null>(null);
+const App: React.FC = () => {
+  const [resume, setResume] = useState<File | null>(null);
   const [jobDescription, setJobDescription] = useState("");
   const [loading, setLoading] = useState(false);
-  const [result, setResult] = useState("");
-
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files) {
-      setFile(e.target.files[0]);
-    }
-  };
+  const [error, setError] = useState("");
+  const [result, setResult] = useState<{
+    matchPercentage: number;
+    strengths: string[];
+    weaknesses: string[];
+    suggestions: string;
+  } | null>(null);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!file || !jobDescription) {
-      alert("Please upload a resume and enter a job description.");
+    if (!resume || !jobDescription) {
+      setError("Please upload a resume and provide a job description.");
       return;
     }
 
+    setLoading(true);
+    setError("");
+    setResult(null);
+
     const formData = new FormData();
-    formData.append("resume", file);
+    formData.append("resume", resume);
     formData.append("jobDescription", jobDescription);
 
-    setLoading(true);
-
     try {
-      const response = await axios.post(
-        "http://localhost:5000/api/analyze",
-        formData,
-        {
-          headers: { "Content-Type": "multipart/form-data" },
-        }
-      );
+      const response = await fetch("http://localhost:5000/api/analyze", {
+        method: "POST",
+        body: formData,
+      });
 
-      setResult(response.data.feedback || "No feedback received.");
-    } catch (error) {
-      console.error(error);
-      setResult("An error occurred.");
+      const data = await response.json();
+
+      if (!response.ok) throw new Error(data.error || "Something went wrong");
+
+      setResult(data);
+      setResume(null);
+      setJobDescription("");
+    } catch (err: any) {
+      setError(err.message || "Failed to analyze resume.");
     } finally {
       setLoading(false);
     }
@@ -46,44 +50,62 @@ function App() {
 
   return (
     <div className="min-h-screen bg-gray-100 flex items-center justify-center p-4">
-      <form
-        onSubmit={handleSubmit}
-        className="bg-white p-6 rounded shadow-md w-full max-w-md space-y-4"
-      >
-        <h1 className="text-xl font-bold">Resume Analyzer</h1>
+      <div className="bg-white shadow-lg rounded-lg w-full max-w-xl p-6 space-y-6">
+        <h1 className="text-2xl font-bold text-center">Resume Reviewer</h1>
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <input
+            type="file"
+            accept="application/pdf"
+            onChange={(e) => setResume(e.target.files?.[0] || null)}
+            className="block w-full text-sm text-gray-700 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:bg-blue-600 file:text-white hover:file:bg-blue-700"
+          />
+          <textarea
+            placeholder="Paste the job description here..."
+            className="w-full h-32 p-3 border rounded-md resize-none"
+            value={jobDescription}
+            onChange={(e) => setJobDescription(e.target.value)}
+          />
+          <button
+            type="submit"
+            disabled={loading}
+            className="w-full py-2 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-md transition-colors"
+          >
+            {loading ? <Spinner /> : "Upload and Analyze"}
+          </button>
+        </form>
 
-        <input
-          type="file"
-          accept=".pdf"
-          onChange={handleFileChange}
-          className="block w-full text-sm text-gray-600"
-        />
+        {error && <p className="text-red-600 font-semibold text-sm">{error}</p>}
 
-        <textarea
-          placeholder="Paste the job description here..."
-          value={jobDescription}
-          onChange={(e) => setJobDescription(e.target.value)}
-          className="w-full border p-2 rounded h-40"
-          required
-        />
-
-        <button
-          type="submit"
-          className="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600"
-        >
-          {loading ? "Analyzing..." : "Upload & Analyze"}
-        </button>
-
-        {loading && <div className="mt-4 text-blue-600">⏳ Analyzing...</div>}
         {result && (
-          <div className="mt-4 p-3 bg-gray-100 rounded border border-gray-300">
-            <strong>Feedback:</strong>
-            <p>{result}</p>
+          <div className="space-y-3 text-sm">
+            <h2 className="text-lg font-bold text-green-700">
+              Match: {result.matchPercentage}%
+            </h2>
+            <div>
+              <p className="font-semibold">Strengths:</p>
+              <ul className="list-disc ml-6">
+                {result.strengths.map((item, i) => (
+                  <li key={i}>{item}</li>
+                ))}
+              </ul>
+            </div>
+            <div>
+              <p className="font-semibold">Weaknesses:</p>
+              <ul className="list-disc ml-6">
+                {result.weaknesses.map((item, i) => (
+                  <li key={i}>{item}</li>
+                ))}
+              </ul>
+            </div>
+            <div>
+              <p className="font-semibold">Suggestions:</p>
+              <p>{result.suggestions}</p>
+            </div>
           </div>
         )}
-      </form>
+      </div>
     </div>
   );
-}
+};
 
 export default App;
