@@ -10,7 +10,7 @@ const App: React.FC = () => {
     matchPercentage: number;
     strengths: string[];
     weaknesses: string[];
-    suggestions: string;
+    suggestions: string[] | string;
   } | null>(null);
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -48,6 +48,13 @@ const App: React.FC = () => {
     }
   };
 
+  // Dynamic color for match percentage
+  const getMatchColor = (percentage: number) => {
+    if (percentage >= 80) return "text-green-600";
+    if (percentage >= 50) return "text-yellow-600";
+    return "text-red-600";
+  };
+
   return (
     <div className="min-h-screen bg-gray-100 flex items-center justify-center p-4">
       <div className="bg-white shadow-lg rounded-lg w-full max-w-xl p-6 space-y-6">
@@ -77,8 +84,12 @@ const App: React.FC = () => {
         {error && <p className="text-red-600 font-semibold text-sm">{error}</p>}
 
         {result && (
-          <div className="space-y-3 text-sm">
-            <h2 className="text-lg font-bold text-green-700">
+          <div className="space-y-3 text-sm animate-fadeIn transition-opacity duration-500 ease-in-out">
+            <h2
+              className={`text-lg font-bold ${getMatchColor(
+                result.matchPercentage
+              )}`}
+            >
               Match: {result.matchPercentage}%
             </h2>
             <div>
@@ -99,7 +110,15 @@ const App: React.FC = () => {
             </div>
             <div>
               <p className="font-semibold">Suggestions:</p>
-              <p>{result.suggestions}</p>
+              {Array.isArray(result.suggestions) ? (
+                <ul className="list-disc ml-6">
+                  {result.suggestions.map((sugg, i) => (
+                    <li key={i}>{sugg}</li>
+                  ))}
+                </ul>
+              ) : (
+                <p>{result.suggestions}</p>
+              )}
             </div>
           </div>
         )}
