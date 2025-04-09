@@ -15,6 +15,7 @@ router.post('/', upload.single('resume'), (req, res) => {
     try {
       const jobDescription = req.body.jobDescription;
       const file = req.file;
+      const mode = req.body.mode || 'user'; // Default to 'user' if not provided
 
       if (!file) {
         res.status(400).json({ error: 'No resume file uploaded.' });
@@ -30,8 +31,8 @@ router.post('/', upload.single('resume'), (req, res) => {
       const pdfData = await pdfParse(file.buffer);
       const resumeText = pdfData.text;
 
-      // Analyze resume vs job description
-      const result = await analyzeResume(resumeText, jobDescription);
+      // Analyze resume vs job description based on mode
+      const result = await analyzeResume(resumeText, jobDescription, mode);
 
       res.json(result);
     } catch (error) {

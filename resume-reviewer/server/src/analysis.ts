@@ -9,11 +9,16 @@ interface AnalysisResult {
   matchPercentage: number;
   strengths: string[];
   weaknesses: string[];
-  suggestions: string[];
+  suggestions: string[] | string;
+  qualified?: boolean;
+  reason?: string;
 }
 
-export const analyzeResume = async (resumeText: string, jobDescription: string): Promise<AnalysisResult> => {
-  const prompt = `
+export const analyzeResume = async (resumeText: string, jobDescription: string, mode: 'user' | 'recruiter'): Promise<AnalysisResult> => {
+  let prompt = '';
+
+  if (mode === 'user') {
+    prompt = `
 You are an intelligent resume reviewer. A user uploaded the following resume and job description. Analyze how well the resume matches the job description.
 
 Respond in JSON format with:
@@ -29,7 +34,24 @@ Job Description:
 ${jobDescription}
 
 Respond:
-`;
+    `;
+  } else if (mode === 'recruiter') {
+    prompt = `
+You are a recruiter. A job applicant uploaded the following resume and job description. Analyze how well the resume matches the job description and provide a clear answer about whether the applicant is qualified for the job.
+
+Respond in JSON format with:
+- qualified (true or false),
+- reason (a clear explanation of why the applicant is qualified or not)
+
+Resume:
+${resumeText}
+
+Job Description:
+${jobDescription}
+
+Respond:
+    `;
+  }
 
   try {
     const response = await axios.post(

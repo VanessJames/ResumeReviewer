@@ -11,10 +11,15 @@ const App: React.FC = () => {
     strengths: string[];
     weaknesses: string[];
     suggestions: string[] | string;
+    qualified?: boolean;
+    reason?: string;
   } | null>(null);
+  const [mode, setMode] = useState<"user" | "recruiter">("user");
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+
+    // Check if resume and job description are provided
     if (!resume || !jobDescription) {
       setError("Please upload a resume and provide a job description.");
       return;
@@ -27,38 +32,74 @@ const App: React.FC = () => {
     const formData = new FormData();
     formData.append("resume", resume);
     formData.append("jobDescription", jobDescription);
+    formData.append("mode", mode);
 
     try {
+      console.log("Sending request...");
       const response = await fetch("http://localhost:5000/api/analyze", {
         method: "POST",
         body: formData,
       });
 
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(
+          errorData.error || "Something went wrong with the API."
+        );
+      }
+
       const data = await response.json();
+      console.log("Received response:", data);
 
-      if (!response.ok) throw new Error(data.error || "Something went wrong");
+      // If there is no response or result, set an error
+      if (!data) {
+        throw new Error("No data received from the API.");
+      }
 
-      setResult(data);
+      setResult(data); // This triggers a re-render
       setResume(null);
       setJobDescription("");
     } catch (err: any) {
+      console.error("Error:", err);
       setError(err.message || "Failed to analyze resume.");
     } finally {
       setLoading(false);
     }
   };
 
-  // Dynamic color for match percentage
-  const getMatchColor = (percentage: number) => {
-    if (percentage >= 80) return "text-green-600";
-    if (percentage >= 50) return "text-yellow-600";
-    return "text-red-600";
+  const handleModeChange = (newMode: "user" | "recruiter") => {
+    setMode(newMode);
+    setResult(null); // clear previous results
+    setError(""); // clear errors
+    setResume(null); // clear the resume when mode changes
+    setJobDescription(""); // clear the job description when mode changes
   };
 
   return (
     <div className="min-h-screen bg-gray-100 flex items-center justify-center p-4">
       <div className="bg-white shadow-lg rounded-lg w-full max-w-xl p-6 space-y-6">
         <h1 className="text-2xl font-bold text-center">Resume Reviewer</h1>
+
+        {/* Mode Toggle */}
+        <div className="flex justify-center space-x-4">
+          <button
+            onClick={() => handleModeChange("user")}
+            className={`px-4 py-2 rounded-md font-semibold ${
+              mode === "user" ? "bg-blue-600 text-white" : "bg-gray-200"
+            }`}
+          >
+            User
+          </button>
+          <button
+            onClick={() => handleModeChange("recruiter")}
+            className={`px-4 py-2 rounded-md font-semibold ${
+              mode === "recruiter" ? "bg-blue-600 text-white" : "bg-gray-200"
+            }`}
+          >
+            Recruiter
+          </button>
+        </div>
+
         <form onSubmit={handleSubmit} className="space-y-4">
           <input
             type="file"
@@ -84,42 +125,64 @@ const App: React.FC = () => {
         {error && <p className="text-red-600 font-semibold text-sm">{error}</p>}
 
         {result && (
-          <div className="space-y-3 text-sm animate-fadeIn transition-opacity duration-500 ease-in-out">
-            <h2
-              className={`text-lg font-bold ${getMatchColor(
-                result.matchPercentage
-              )}`}
-            >
-              Match: {result.matchPercentage}%
-            </h2>
-            <div>
-              <p className="font-semibold">Strengths:</p>
-              <ul className="list-disc ml-6">
-                {result.strengths.map((item, i) => (
-                  <li key={i}>{item}</li>
-                ))}
-              </ul>
-            </div>
-            <div>
-              <p className="font-semibold">Weaknesses:</p>
-              <ul className="list-disc ml-6">
-                {result.weaknesses.map((item, i) => (
-                  <li key={i}>{item}</li>
-                ))}
-              </ul>
-            </div>
-            <div>
-              <p className="font-semibold">Suggestions:</p>
-              {Array.isArray(result.suggestions) ? (
-                <ul className="list-disc ml-6">
-                  {result.suggestions.map((sugg, i) => (
-                    <li key={i}>{sugg}</li>
-                  ))}
-                </ul>
-              ) : (
-                <p>{result.suggestions}</p>
-              )}
-            </div>
+          <div className="space-y-3 text-sm animate-fade-in">
+            {mode === "user" && result.matchPercentage !== undefined && (
+              <>
+                <h2
+                  className={`text-lg font-bold ${
+                    result.matchPercentage >= 75
+                      ? "text-green-600"
+                      : result.matchPercentage >= 50
+                      ? "text-yellow-600"
+                      : "text-red-600"
+                  }`}
+                >
+                  Match: {result.matchPercentage}%
+                </h2>
+                <div>
+                  <h3 className="font-semibold">Strengths:</h3>
+                  <ul>
+                    {result.strengths.map((strength, idx) => (
+                      <li key={idx}>{strength}</li>
+                    ))}
+                  </ul>
+                </div>
+                <div>
+                  <h3 className="font-semibold">Weaknesses:</h3>
+                  <ul>
+                    {result.weaknesses.map((weakness, idx) => (
+                      <li key={idx}>{weakness}</li>
+                    ))}
+                  </ul>
+                </div>
+                <div>
+                  <h3 className="font-semibold">Suggestions:</h3>
+                  <ul>
+                    {typeof result.suggestions === "string" ? (
+                      <li>{result.suggestions}</li>
+                    ) : (
+                      result.suggestions.map((suggestion, idx) => (
+                        <li key={idx}>{suggestion}</li>
+                      ))
+                    )}
+                  </ul>
+                </div>
+              </>
+            )}
+
+            {mode === "recruiter" && result.qualified !== undefined && (
+              <>
+                <h2
+                  className={`text-lg font-bold ${
+                    result.qualified ? "text-green-600" : "text-red-600"
+                  }`}
+                >
+                  {result.qualified ? "Qualified" : "Not Qualified"}
+                </h2>
+                <p className="font-semibold">Reason:</p>
+                <p>{result.reason}</p>
+              </>
+            )}
           </div>
         )}
       </div>
