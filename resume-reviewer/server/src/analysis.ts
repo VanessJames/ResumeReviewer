@@ -37,7 +37,7 @@ Respond:
     `;
   } else if (mode === 'recruiter') {
     prompt = `
-You are a recruiter. A job applicant uploaded the following resume and job description. Analyze how well the resume matches the job description and provide a clear answer about whether the applicant is qualified for the job.
+You are a recruiter, A job applicant uploaded the following resume and job description. Analyze how well the resume matches the job description and provide a clear answer about whether the applicant is qualified for the job.
 
 Respond in JSON format with:
 - qualified (true or false),
